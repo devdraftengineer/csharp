@@ -1,0 +1,3888 @@
+openapi: 3.0.0
+info:
+  contact: {}
+  description: "\nA comprehensive payment processing and business management API that\
+    \ enables seamless integration of cryptocurrency and traditional payment methods.\n\
+    \    "
+  title: Devdraft AI Payment & Business Management API
+  version: 1.0.0
+servers:
+- description: Production Server
+  url: https://api.devdraft.ai
+paths:
+  /api/v0/health:
+    get:
+      operationId: HealthController_check_v0
+      parameters: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponseDto"
+          description: Service is up and running
+        "401":
+          description: Unauthorized. Client key or secret is invalid or missing.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Authenticated health check endpoint
+      tags:
+      - API Health
+  /api/v0/health/public:
+    get:
+      operationId: HealthController_publicHealthCheck_v0
+      parameters: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicHealthResponseDto"
+          description: Basic service health check
+      summary: Public health check endpoint
+      tags:
+      - API Health
+  /api/v0/test-payment:
+    post:
+      description: "Creates a new payment. Requires an idempotency key to prevent\
+        \ duplicate payments on retry.\n    \n## Idempotency Key Best Practices\n\n\
+        1. **Generate unique keys**: Use UUIDs or similar unique identifiers, prefixed\
+        \ with a descriptive operation name\n2. **Store keys client-side**: Save the\
+        \ key with the original request so you can retry with the same key\n3. **Key\
+        \ format**: Between 6-64 alphanumeric characters\n4. **Expiration**: Keys\
+        \ expire after 24 hours by default\n5. **Use case**: Perfect for ensuring\
+        \ payment operations are never processed twice, even during network failures\n\
+        \n## Example Request (curl)\n\n```bash\ncurl -X POST \\\n  https://api.example.com/rest-api/v0/test-payment\
+        \ \\\n  -H 'Content-Type: application/json' \\\n  -H 'Client-Key: your-api-key'\
+        \ \\\n  -H 'Client-Secret: your-api-secret' \\\n  -H 'Idempotency-Key: payment_123456_unique_key'\
+        \ \\\n  -d '{\n    \"amount\": 100.00,\n    \"currency\": \"USD\",\n    \"\
+        description\": \"Test payment for order #12345\",\n    \"customerId\": \"\
+        cus_12345\"\n  }'\n```\n\n## Example Response (First Request)\n\n```json\n\
+        {\n  \"id\": \"pay_abc123xyz456\",\n  \"amount\": 100.00,\n  \"currency\"\
+        : \"USD\",\n  \"status\": \"succeeded\",\n  \"timestamp\": \"2023-07-01T12:00:00.000Z\"\
+        \n}\n```\n\n## Example Response (Duplicate Request)\n\nThe exact same response\
+        \ will be returned for any duplicate request with the same idempotency key,\
+        \ without creating a new payment.\n\n## Retry Scenario Example\n\nNetwork\
+        \ failure during payment submission:\n1. Client creates payment request with\
+        \ idempotency key: \"payment_123456_unique_key\"\n2. Request begins processing,\
+        \ but network connection fails before response received\n3. Client retries\
+        \ the exact same request with the same idempotency key\n4. Server detects\
+        \ duplicate idempotency key and returns the result of the first request\n\
+        5. No duplicate payment is created\n\nIf you retry with same key but different\
+        \ parameters (e.g., different amount), you'll receive a 409 Conflict error."
+      operationId: TestPaymentController_createPayment_v0
+      parameters:
+      - description: "Unique key to ensure the request is idempotent. If a request\
+          \ with the same key is sent multiple times, only the first will be processed,\
+          \ and subsequent requests will return the same response."
+        explode: false
+        in: header
+        name: idempotency-key
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentRequestDto"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponseDto"
+          description: Payment processed successfully
+        "400":
+          description: "Bad Request. The idempotency key is missing or invalid.\n\
+            \  \nSample response:\n```json\n{\n  \"statusCode\": 400,\n  \"message\"\
+            : \"The idempotency-key header is required for POST requests\"\n}\n```"
+        "401":
+          description: Unauthorized. Client key or secret is invalid or missing.
+        "409":
+          description: "Idempotency Conflict. The provided idempotency key was already\
+            \ used with different parameters.\n  \nSample response:\n```json\n{\n\
+            \  \"statusCode\": 409,\n  \"message\": \"Conflict: Idempotency key already\
+            \ used with different request data\"\n}\n```"
+        "429":
+          description: "Too many requests, rate limit exceeded."
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Process a test payment
+      tags:
+      - Test Payments
+  /api/v0/test-payment/{id}:
+    get:
+      operationId: TestPaymentController_getPayment_v0
+      parameters:
+      - description: Payment ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponseDto"
+          description: Payment details retrieved successfully
+        "400":
+          description: "Bad Request. The idempotency key is missing or invalid.\n\
+            \  \nSample response:\n```json\n{\n  \"statusCode\": 400,\n  \"message\"\
+            : \"The idempotency-key header is required for POST requests\"\n}\n```"
+        "401":
+          description: Unauthorized. Client key or secret is invalid or missing.
+        "409":
+          description: "Idempotency Conflict. The provided idempotency key was already\
+            \ used with different parameters.\n  \nSample response:\n```json\n{\n\
+            \  \"statusCode\": 409,\n  \"message\": \"Conflict: Idempotency key already\
+            \ used with different request data\"\n}\n```"
+        "429":
+          description: "Too many requests, rate limit exceeded."
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get payment details by ID
+      tags:
+      - Test Payments
+  /api/v0/test-payment/{id}/refund:
+    post:
+      description: "Refunds an existing payment. Requires an idempotency key to prevent\
+        \ duplicate refunds on retry.\n    \n## Idempotency Key Benefits for Refunds\n\
+        \nRefunds are critical financial operations where duplicates can cause serious\
+        \ issues. Using idempotency keys ensures:\n\n1. **Prevent duplicate refunds**:\
+        \ Even if a request times out or fails, retrying with the same key won't issue\
+        \ multiple refunds\n2. **Safe retries**: Network failures or timeouts won't\
+        \ risk creating multiple refunds\n3. **Consistent response**: Always get the\
+        \ same response for the same operation\n\n## Example Request (curl)\n\n```bash\n\
+        curl -X POST \\\n  https://api.example.com/rest-api/v0/test-payment/pay_abc123xyz456/refund\
+        \ \\\n  -H 'Content-Type: application/json' \\\n  -H 'Client-Key: your-api-key'\
+        \ \\\n  -H 'Client-Secret: your-api-secret' \\\n  -H 'Idempotency-Key: refund_123456_unique_key'\n\
+        ```\n\n## Example Response (First Request)\n\n```json\n{\n  \"id\": \"ref_xyz789\"\
+        ,\n  \"paymentId\": \"pay_abc123xyz456\",\n  \"amount\": 100.00,\n  \"status\"\
+        : \"succeeded\",\n  \"timestamp\": \"2023-07-01T14:30:00.000Z\"\n}\n```\n\n\
+        ## Example Response (Duplicate Request)\n\nThe exact same response will be\
+        \ returned for any duplicate request with the same idempotency key, without\
+        \ creating a new refund.\n\n## Idempotency Key Guidelines\n\n- Use a unique\
+        \ key for each distinct refund operation\n- Store keys client-side to ensure\
+        \ you can retry with the same key if needed\n- Keys expire after 24 hours\
+        \ by default"
+      operationId: TestPaymentController_refundPayment_v0
+      parameters:
+      - description: Payment ID to refund
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: "Unique key to ensure the refund request is idempotent. If a\
+          \ request with the same key is sent multiple times, only the first will\
+          \ be processed, and subsequent requests will return the same response."
+        explode: false
+        in: header
+        name: idempotency-key
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundResponseDto"
+          description: Payment refunded successfully
+        "400":
+          description: "Bad Request. The idempotency key is missing or invalid.\n\
+            \  \nSample response:\n```json\n{\n  \"statusCode\": 400,\n  \"message\"\
+            : \"The idempotency-key header is required for POST requests\"\n}\n```"
+        "401":
+          description: Unauthorized. Client key or secret is invalid or missing.
+        "409":
+          description: "Idempotency Conflict. The provided idempotency key was already\
+            \ used with different parameters.\n  \nSample response:\n```json\n{\n\
+            \  \"statusCode\": 409,\n  \"message\": \"Conflict: Idempotency key already\
+            \ used with different request data\"\n}\n```"
+        "429":
+          description: "Too many requests, rate limit exceeded."
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Refund a payment
+      tags:
+      - Test Payments
+  /api/v0/customers:
+    get:
+      description: "Retrieves a list of customers with optional filtering and pagination.\n\
+        \    \nThis endpoint allows you to search and filter customers based on various\
+        \ criteria.\n\n## Use Cases\n- List all customers with pagination\n- Search\
+        \ customers by name or email\n- Filter customers by status\n- Export customer\
+        \ data\n\n## Query Parameters\n- `skip`: Number of records to skip (default:\
+        \ 0, min: 0)\n- `take`: Number of records to take (default: 10, min: 1, max:\
+        \ 100)\n- `status`: Filter by customer status (ACTIVE, BLACKLISTED, DEACTIVATED)\n\
+        - `name`: Filter by customer name (partial match, case-insensitive)\n- `email`:\
+        \ Filter by customer email (exact match, case-insensitive)\n\n## Example Request\n\
+        `GET /api/v0/customers?skip=0&take=20&status=ACTIVE&name=John`\n\n## Example\
+        \ Response\n```json\n{\n  \"data\": [\n    {\n      \"id\": \"cust_123456\"\
+        ,\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"\
+        email\": \"john.doe@example.com\",\n      \"phone_number\": \"+1-555-123-4567\"\
+        ,\n      \"customer_type\": \"Startup\",\n      \"status\": \"ACTIVE\",\n\
+        \      \"created_at\": \"2024-03-20T10:00:00Z\",\n      \"updated_at\": \"\
+        2024-03-20T10:00:00Z\"\n    }\n  ],\n  \"total\": 100,\n  \"skip\": 0,\n \
+        \ \"take\": 10\n}\n```"
+      operationId: CustomerController_findAll
+      parameters:
+      - description: Number of records to skip for pagination
+        explode: true
+        in: query
+        name: skip
+        required: false
+        schema:
+          default: 0
+          example: 0
+          minimum: 0
+          type: number
+        style: form
+      - description: Number of records to return (max 100)
+        explode: true
+        in: query
+        name: take
+        required: false
+        schema:
+          default: 10
+          example: 10
+          maximum: 100
+          minimum: 1
+          type: number
+        style: form
+      - description: Filter customers by status
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          $ref: "#/components/schemas/CustomerStatus"
+        style: form
+      - description: "Filter customers by name (partial match, case-insensitive)"
+        explode: true
+        in: query
+        name: name
+        required: false
+        schema:
+          example: John
+          maxLength: 100
+          type: string
+        style: form
+      - description: "Filter customers by email (exact match, case-insensitive)"
+        explode: true
+        in: query
+        name: email
+        required: false
+        schema:
+          example: john.doe@example.com
+          maxLength: 255
+          type: string
+        style: form
+      responses:
+        "200":
+          description: Successfully retrieved customers
+        "400":
+          description: Bad Request - Invalid query parameters
+        "401":
+          description: Unauthorized - Invalid API credentials
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get all customers with filters
+      tags:
+      - Customers
+    post:
+      description: "Creates a new customer in the system with their personal and contact\
+        \ information.\n    \nThis endpoint allows you to register new customers and\
+        \ store their details for future transactions.\n\n## Use Cases\n- Register\
+        \ new customers for payment processing\n- Store customer information for recurring\
+        \ payments\n- Maintain customer profiles for transaction history\n\n## Example:\
+        \ Create New Customer\n```json\n{\n  \"first_name\": \"John\",\n  \"last_name\"\
+        : \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone_number\": \"\
+        +1-555-123-4567\",\n  \"customer_type\": \"Startup\",\n  \"status\": \"ACTIVE\"\
+        \n}\n```\n\n## Required Fields\n- `first_name`: Customer's first name (1-100\
+        \ characters)\n- `last_name`: Customer's last name (1-100 characters)\n- `phone_number`:\
+        \ Customer's phone number (max 20 characters)\n\n## Optional Fields\n- `email`:\
+        \ Valid email address (max 255 characters)\n- `customer_type`: Type of customer\
+        \ account (Individual, Startup, Small Business, Medium Business, Enterprise,\
+        \ Non-Profit, Government)\n- `status`: Customer status (ACTIVE, BLACKLISTED,\
+        \ DEACTIVATED)"
+      operationId: CustomerController_create
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomerDto"
+        description: Customer creation data
+        required: true
+      responses:
+        "201":
+          description: Customer created successfully
+        "400":
+          description: Bad Request - Invalid input data
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "409":
+          description: Conflict - Customer with the same email already exists
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a new customer
+      tags:
+      - Customers
+  /api/v0/customers/{id}:
+    get:
+      description: "Retrieves detailed information about a specific customer.\n  \
+        \  \nThis endpoint allows you to fetch complete customer details including\
+        \ their contact information and status.\n\n## Use Cases\n- View customer details\n\
+        - Verify customer information\n- Check customer status before processing payments\n\
+        \n## Path Parameters\n- `id`: Customer UUID (required) - Must be a valid UUID\
+        \ format\n\n## Example Request\n`GET /api/v0/customers/123e4567-e89b-12d3-a456-426614174000`\n\
+        \n## Example Response\n```json\n{\n  \"id\": \"cust_123456\",\n  \"first_name\"\
+        : \"John\",\n  \"last_name\": \"Doe\",\n  \"email\": \"john.doe@example.com\"\
+        ,\n  \"phone_number\": \"+1-555-123-4567\",\n  \"customer_type\": \"Enterprise\"\
+        ,\n  \"status\": \"ACTIVE\",\n  \"last_spent\": 1250.50,\n  \"last_purchase_date\"\
+        : \"2024-03-15T14:30:00Z\",\n  \"created_at\": \"2024-03-20T10:00:00Z\",\n\
+        \  \"updated_at\": \"2024-03-20T10:00:00Z\"\n}\n```"
+      operationId: CustomerController_findOne
+      parameters:
+      - description: Customer unique identifier (UUID)
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          description: Successfully retrieved customer
+        "400":
+          description: Bad Request - Invalid customer ID format
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Not Found - Customer not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get a customer by ID
+      tags:
+      - Customers
+    patch:
+      description: "Updates an existing customer's information.\n    \nThis endpoint\
+        \ allows you to modify customer details while preserving their core information.\n\
+        \n## Use Cases\n- Update customer contact information\n- Change customer type\n\
+        - Modify customer status\n\n## Path Parameters\n- `id`: Customer UUID (required)\
+        \ - Must be a valid UUID format\n\n## Example Request\n`PATCH /api/v0/customers/123e4567-e89b-12d3-a456-426614174000`\n\
+        \n## Example Request Body\n```json\n{\n  \"first_name\": \"John\",\n  \"last_name\"\
+        : \"Smith\",\n  \"phone_number\": \"+1-987-654-3210\",\n  \"customer_type\"\
+        : \"Small Business\"\n}\n```\n\n## Notes\n- Only include fields that need\
+        \ to be updated\n- All fields are optional in updates\n- Status changes may\
+        \ require additional verification"
+      operationId: CustomerController_update
+      parameters:
+      - description: Customer unique identifier (UUID)
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCustomerDto"
+        description: Customer update data
+        required: true
+      responses:
+        "200":
+          description: Successfully updated customer
+        "400":
+          description: Bad Request - Invalid input data or customer ID format
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Not Found - Customer not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Update a customer
+      tags:
+      - Customers
+  /api/v0/payment-links:
+    get:
+      operationId: PaymentLinksController_findAll
+      parameters:
+      - description: Number of records to skip (must be non-negative)
+        explode: true
+        in: query
+        name: skip
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Number of records to take (must be positive)
+        explode: true
+        in: query
+        name: take
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          description: Return all payment links.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get all payment links
+      tags:
+      - Payment Links
+    post:
+      description: Creates a new payment link with the provided details. Supports
+        both simple one-time payments and complex product bundles.
+      operationId: PaymentLinksController_create
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentLinkDto"
+        description: Payment link creation data
+        required: true
+      responses:
+        "201":
+          description: The payment link has been successfully created.
+        "400":
+          description: Bad Request.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a new payment link
+      tags:
+      - Payment Links
+  /api/v0/payment-links/{id}:
+    get:
+      operationId: PaymentLinksController_findOne
+      parameters:
+      - description: Payment Link ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          description: Return the payment link.
+        "404":
+          description: Payment link not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get a payment link by ID
+      tags:
+      - Payment Links
+    put:
+      operationId: PaymentLinksController_update
+      parameters:
+      - description: Payment Link ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePaymentLinkDto"
+        required: true
+      responses:
+        "200":
+          description: The payment link has been successfully updated.
+        "404":
+          description: Payment link not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Update a payment link
+      tags:
+      - Payment Links
+  /api/v0/payment-intents/stablecoin:
+    post:
+      description: "Creates a new stable payment intent for stablecoin-to-stablecoin\
+        \ transfers.\n    \nThis endpoint allows you to create payment intents for\
+        \ transfers between different stablecoins and networks.\nPerfect for cross-chain\
+        \ stablecoin swaps and conversions.\n\n## Use Cases\n- USDC to EURC conversions\n\
+        - Cross-chain stablecoin transfers (e.g., Ethereum USDC to Polygon USDC)\n\
+        - Flexible amount payment intents for dynamic pricing\n\n## Example: USDC\
+        \ to EURC Conversion\n```json\n{\n  \"sourceCurrency\": \"usdc\",\n  \"sourceNetwork\"\
+        : \"ethereum\",\n  \"destinationCurrency\": \"eurc\",\n  \"destinationNetwork\"\
+        : \"polygon\",\n  \"destinationAddress\": \"0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8e1\"\
+        ,\n  \"amount\": \"100.00\",\n  \"customer_first_name\": \"John\",\n  \"customer_last_name\"\
+        : \"Doe\",\n  \"customer_email\": \"john.doe@example.com\"\n}\n```\n\n## Flexible\
+        \ Amount Payments\nOmit the `amount` field to create a flexible payment intent\
+        \ where users can specify the amount during payment.\n\n## Idempotency\nInclude\
+        \ an `idempotency-key` header with a unique UUID v4 to prevent duplicate payments.\
+        \ Subsequent requests with the same key will return the original response."
+      operationId: PaymentIntentController_createStablePaymentIntent
+      parameters:
+      - description: Unique UUID v4 for idempotent requests. Prevents duplicate payments.
+        explode: false
+        in: header
+        name: idempotency-key
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStablePaymentIntentDto"
+        description: Stable payment intent creation data
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              example:
+                id: txn_01HZXK8M9N2P3Q4R5S6T7U8V9W
+                bridge_transfer_id: transfer_abc123xyz456
+                state: pending
+                amount: "100.00"
+                source:
+                  payment_rail: ethereum
+                  currency: usdc
+                destination:
+                  payment_rail: polygon
+                  currency: eurc
+                  to_address: 0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8e1
+                customer:
+                  first_name: John
+                  last_name: Doe
+                  email: john.doe@example.com
+                  address: "123 Main St, New York, NY 10001"
+                  country: United States
+                  phone_number: +1-555-123-4567
+                created_at: 2023-07-01T12:00:00.000Z
+                updated_at: 2023-07-01T12:00:00.000Z
+          description: Stable payment intent created successfully
+        "400":
+          description: Bad Request - Invalid input data
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Not Found - App not found
+        "409":
+          description: Conflict - Idempotency key already used with different parameters
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a stable payment intent
+      tags:
+      - Payment Intents
+  /api/v0/payment-intents/bank:
+    post:
+      description: "Creates a new bank payment intent for fiat-to-stablecoin transfers.\n\
+        \    \nThis endpoint allows you to create payment intents for bank transfers\
+        \ (ACH, Wire, SEPA) that convert to stablecoins.\nPerfect for onboarding users\
+        \ from traditional banking to crypto.\n\n## Supported Payment Rails\n- **ACH_PUSH**:\
+        \ US bank transfers (same-day or standard)\n- **WIRE**: International wire\
+        \ transfers\n- **SEPA**: European bank transfers\n\n## Use Cases\n- USD bank\
+        \ account to USDC conversion\n- EUR bank account to EURC conversion\n- MXN\
+        \ bank account to stablecoin conversion\n- Flexible amount payment intents\
+        \ for variable pricing\n\n## Supported Source Currencies\n- **USD**: US Dollar\n\
+        - **EUR**: Euro\n- **MXN**: Mexican Peso\n\n## Example: USD Bank to USDC\n\
+        ```json\n{\n  \"sourcePaymentRail\": \"ach_push\",\n  \"sourceCurrency\":\
+        \ \"usd\",\n  \"destinationCurrency\": \"usdc\",\n  \"destinationNetwork\"\
+        : \"ethereum\",\n  \"destinationAddress\": \"0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8e1\"\
+        ,\n  \"amount\": \"1000.00\",\n  \"customer_first_name\": \"John\",\n  \"\
+        customer_last_name\": \"Doe\",\n  \"customer_email\": \"john.doe@example.com\"\
+        ,\n  \"ach_reference\": \"INV12345\"\n}\n```\n\n## Reference Fields\nUse appropriate\
+        \ reference fields based on the payment rail:\n- `ach_reference`: For ACH\
+        \ transfers (max 10 chars, alphanumeric + spaces)\n- `wire_message`: For wire\
+        \ transfers (max 256 chars)\n- `sepa_reference`: For SEPA transfers (6-140\
+        \ chars, specific character set)\n\n## Idempotency\nInclude an `idempotency-key`\
+        \ header with a unique UUID v4 to prevent duplicate payments. Subsequent requests\
+        \ with the same key will return the original response."
+      operationId: PaymentIntentController_createBankPaymentIntent
+      parameters:
+      - description: Unique UUID v4 for idempotent requests. Prevents duplicate payments.
+        explode: false
+        in: header
+        name: idempotency-key
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBankPaymentIntentDto"
+        description: Bank payment intent creation data
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              example:
+                id: txn_01HZXK8M9N2P3Q4R5S6T7U8V9X
+                bridge_transfer_id: transfer_def456ghi789
+                state: pending
+                amount: "1000.00"
+                source:
+                  payment_rail: ach_push
+                  currency: usd
+                destination:
+                  payment_rail: ethereum
+                  currency: usdc
+                  to_address: 0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8e1
+                customer:
+                  first_name: John
+                  last_name: Doe
+                  email: john.doe@example.com
+                  address: "123 Main St, New York, NY 10001"
+                  country: United States
+                  phone_number: +1-555-123-4567
+                references:
+                  ach_reference: INV12345
+                created_at: 2023-07-01T12:00:00.000Z
+                updated_at: 2023-07-01T12:00:00.000Z
+          description: Bank payment intent created successfully
+        "400":
+          description: Bad Request - Invalid input data
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Not Found - App not found
+        "409":
+          description: Conflict - Idempotency key already used with different parameters
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a bank payment intent
+      tags:
+      - Payment Intents
+  /api/v0/webhooks:
+    get:
+      description: Retrieves a list of all webhooks for your application. Requires
+        webhook:read scope.
+      operationId: WebhookController_findAll
+      parameters:
+      - description: "Number of records to skip (default: 0)"
+        explode: true
+        in: query
+        name: skip
+        required: false
+        schema:
+          type: number
+        style: form
+      - description: "Number of records to return (default: 10)"
+        explode: true
+        in: query
+        name: take
+        required: false
+        schema:
+          type: number
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/WebhookResponseDto"
+                type: array
+          description: Return all webhooks.
+        "401":
+          content:
+            application/json: {}
+          description: Unauthorized - Missing or invalid API key.
+        "403":
+          content:
+            application/json: {}
+          description: Forbidden - Missing required scope or API key not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get all webhooks
+      tags:
+      - Webhooks
+    post:
+      description: Creates a new webhook endpoint for receiving event notifications.
+        Requires webhook:create scope.
+      operationId: WebhookController_create
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWebhookDto"
+        description: Webhook configuration details
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResponseDto"
+          description: The webhook has been successfully created.
+        "400":
+          content:
+            application/json: {}
+          description: Invalid input data.
+        "401":
+          content:
+            application/json: {}
+          description: Unauthorized - Missing or invalid API key.
+        "403":
+          content:
+            application/json: {}
+          description: Forbidden - Missing required scope or API key not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a new webhook
+      tags:
+      - Webhooks
+  /api/v0/webhooks/{id}:
+    delete:
+      description: Deletes a webhook configuration. Requires webhook:delete scope.
+      operationId: WebhookController_remove
+      parameters:
+      - description: Webhook unique identifier (UUID)
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResponseDto"
+          description: The webhook has been successfully deleted.
+        "401":
+          content:
+            application/json: {}
+          description: Unauthorized - Missing or invalid API key.
+        "403":
+          content:
+            application/json: {}
+          description: Forbidden - Missing required scope or API key not found.
+        "404":
+          content:
+            application/json:
+              example:
+                statusCode: 404
+                message: Webhook not found
+                error: Not Found
+          description: Webhook not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Delete a webhook
+      tags:
+      - Webhooks
+    get:
+      description: Retrieves details for a specific webhook. Requires webhook:read
+        scope.
+      operationId: WebhookController_findOne
+      parameters:
+      - description: Webhook unique identifier (UUID)
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResponseDto"
+          description: Return the webhook.
+        "401":
+          content:
+            application/json: {}
+          description: Unauthorized - Missing or invalid API key.
+        "403":
+          content:
+            application/json: {}
+          description: Forbidden - Missing required scope or API key not found.
+        "404":
+          content:
+            application/json:
+              example:
+                statusCode: 404
+                message: Webhook not found
+                error: Not Found
+          description: Webhook not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get a webhook by id
+      tags:
+      - Webhooks
+    patch:
+      description: Updates an existing webhook configuration. Requires webhook:update
+        scope.
+      operationId: WebhookController_update
+      parameters:
+      - description: Webhook unique identifier (UUID)
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWebhookDto"
+        description: Webhook update details
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResponseDto"
+          description: The webhook has been successfully updated.
+        "400":
+          content:
+            application/json: {}
+          description: Invalid input data.
+        "401":
+          content:
+            application/json: {}
+          description: Unauthorized - Missing or invalid API key.
+        "403":
+          content:
+            application/json: {}
+          description: Forbidden - Missing required scope or API key not found.
+        "404":
+          content:
+            application/json:
+              example:
+                statusCode: 404
+                message: Webhook not found
+                error: Not Found
+          description: Webhook not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Update a webhook
+      tags:
+      - Webhooks
+  /api/v0/wallets:
+    get:
+      operationId: WalletController_getWallets
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get wallets for an app
+      tags:
+      - Wallets
+  /api/v0/transfers/direct-wallet:
+    post:
+      operationId: TransferController_createDirectWalletTransfer
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDirectWalletTransferDto"
+        required: true
+      responses:
+        "201":
+          description: The transfer has been successfully created.
+        "400":
+          description: Bad Request - Invalid input
+        "404":
+          description: Not Found - Bridge wallet not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a direct wallet transfer
+      tags:
+      - Transfers
+  /api/v0/transfers/direct-bank:
+    post:
+      operationId: TransferController_createDirectBankTransfer
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDirectBankTransferDto"
+        required: true
+      responses:
+        "201":
+          description: The transfer has been successfully created.
+        "400":
+          description: Bad Request - Invalid input
+        "404":
+          description: Not Found - Bridge wallet not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a direct bank transfer
+      tags:
+      - Transfers
+  /api/v0/transfers/stablecoin-conversion:
+    post:
+      operationId: TransferController_createStablecoinConversion
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStablecoinConversionDto"
+        required: true
+      responses:
+        "201":
+          description: The conversion has been successfully created.
+        "400":
+          description: Bad Request - Invalid input
+        "404":
+          description: Not Found - Bridge wallet not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a stablecoin conversion
+      tags:
+      - Transfers
+  /api/v0/transfers/external-bank-transfer:
+    post:
+      operationId: TransferController_createExternalBankTransfer
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExternalBankTransferDto"
+        required: true
+      responses:
+        "201":
+          description: The external bank transfer has been successfully created.
+        "400":
+          description: Bad Request - Invalid input
+        "404":
+          description: Not Found - Bridge wallet not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create an external bank transfer
+      tags:
+      - Transfers
+  /api/v0/transfers/external-stablecoin-transfer:
+    post:
+      operationId: TransferController_createExternalStablecoinTransfer
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExternalStablecoinTransferDto"
+        required: true
+      responses:
+        "201":
+          description: The external stablecoin transfer has been successfully created.
+        "400":
+          description: Bad Request - Invalid input
+        "404":
+          description: Not Found - Bridge wallet not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create an external stablecoin transfer
+      tags:
+      - Transfers
+  /api/v0/customers/{customerId}/liquidation_addresses:
+    get:
+      description: Retrieve all liquidation addresses associated with a specific customer.
+      operationId: LiquidationAddressController_getLiquidationAddresses
+      parameters:
+      - description: Unique identifier for the customer
+        explode: false
+        in: path
+        name: customerId
+        required: true
+        schema:
+          example: cust_123
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/LiquidationAddressResponseDto"
+                type: array
+          description: List of liquidation addresses
+        "404":
+          content:
+            application/json:
+              schema:
+                example:
+                  error: Not Found
+                  message: Customer with id 'cust_123' not found
+                  statusCode: 404
+          description: Customer not found
+        "500":
+          content:
+            application/json:
+              schema:
+                example:
+                  message: Failed to fetch liquidation addresses
+                  statusCode: 500
+          description: Internal server error
+      summary: Get all liquidation addresses for a customer
+      tags:
+      - Liquidation Addresses
+    post:
+      description: "\n      Create a new liquidation address for a customer. Liquidation\
+        \ addresses allow \n      customers to automatically liquidate cryptocurrency\
+        \ holdings to fiat or other \n      stablecoins based on configured parameters.\n\
+        \n      **Required fields:**\n      - chain: Blockchain network (ethereum,\
+        \ polygon, arbitrum, base)\n      - currency: Stablecoin currency (usdc, eurc,\
+        \ dai, pyusd, usdt)\n      - address: Valid blockchain address\n\n      **At\
+        \ least one destination must be specified:**\n      - external_account_id:\
+        \ External bank account\n      - prefunded_account_id: Developer's prefunded\
+        \ account\n      - bridge_wallet_id: Bridge wallet\n      - destination_address:\
+        \ Crypto wallet address\n\n      **Payment Rails:**\n      Different payment\
+        \ rails have different requirements:\n      - ACH: Requires external_account_id,\
+        \ supports destination_ach_reference\n      - SEPA: Requires external_account_id,\
+        \ supports destination_sepa_reference\n      - Wire: Requires external_account_id,\
+        \ supports destination_wire_message\n      - Crypto: Requires destination_address,\
+        \ supports destination_blockchain_memo\n    "
+      operationId: LiquidationAddressController_createLiquidationAddress
+      parameters:
+      - description: Unique identifier for the customer
+        explode: false
+        in: path
+        name: customerId
+        required: true
+        schema:
+          example: cust_123
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLiquidationAddressDto"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiquidationAddressResponseDto"
+          description: Liquidation address created successfully
+        "400":
+          content:
+            application/json:
+              schema:
+                example:
+                  error: Validation failed
+                  message: Invalid Ethereum address format
+                  statusCode: 400
+          description: Invalid request data
+        "404":
+          content:
+            application/json:
+              schema:
+                example:
+                  error: Not Found
+                  message: Customer with id 'cust_123' not found
+                  statusCode: 404
+          description: Customer not found
+        "500":
+          content:
+            application/json:
+              schema:
+                example:
+                  message: Failed to create liquidation address
+                  statusCode: 500
+          description: Internal server error
+      summary: Create a new liquidation address for a customer
+      tags:
+      - Liquidation Addresses
+  /api/v0/customers/{customerId}/liquidation_addresses/{liquidationAddressId}:
+    get:
+      description: Retrieve a specific liquidation address by its ID for a given customer.
+      operationId: LiquidationAddressController_getLiquidationAddress
+      parameters:
+      - description: Unique identifier for the customer
+        explode: false
+        in: path
+        name: customerId
+        required: true
+        schema:
+          example: cust_123
+          type: string
+        style: simple
+      - description: Unique identifier for the liquidation address
+        explode: false
+        in: path
+        name: liquidationAddressId
+        required: true
+        schema:
+          example: la_generated_id_123
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiquidationAddressResponseDto"
+          description: Liquidation address details
+        "404":
+          content:
+            application/json:
+              schema:
+                example:
+                  error: Not Found
+                  message: Liquidation address with id 'la_123' not found
+                  statusCode: 404
+          description: Liquidation address not found
+        "500":
+          content:
+            application/json:
+              schema:
+                example:
+                  message: Failed to fetch liquidation address
+                  statusCode: 500
+          description: Internal server error
+      summary: Get a specific liquidation address
+      tags:
+      - Liquidation Addresses
+  /api/v0/balance/usdc:
+    get:
+      description: "Retrieves the total USDC balance across all wallets for the specified\
+        \ app.\n    \nThis endpoint aggregates USDC balances from all associated wallets\
+        \ and provides:\n- Total USDC balance across all chains and wallets\n- Detailed\
+        \ breakdown by individual wallet and blockchain network\n- Contract addresses\
+        \ and wallet identifiers for each balance\n\n## Use Cases\n- Dashboard balance\
+        \ display\n- Financial reporting and reconciliation\n- Real-time balance monitoring\n\
+        - Multi-chain balance aggregation\n\n## Response Format\nThe response includes\
+        \ both the aggregated total and detailed breakdown, allowing for\ncomprehensive\
+        \ balance tracking and wallet-specific analysis."
+      operationId: BalanceController_getUSDCBalance
+      parameters: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AggregatedBalanceResponse"
+          description: USDC balance retrieved successfully
+        "401":
+          description: Unauthorized - Invalid or missing API credentials
+        "404":
+          description: App not found or no access permission
+        "500":
+          description: Internal server error
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get USDC balance for an app
+      tags:
+      - App Balances
+  /api/v0/balance/eurc:
+    get:
+      description: "Retrieves the total EURC balance across all wallets for the specified\
+        \ app.\n    \nThis endpoint aggregates EURC balances from all associated wallets\
+        \ and provides:\n- Total EURC balance across all chains and wallets\n- Detailed\
+        \ breakdown by individual wallet and blockchain network\n- Contract addresses\
+        \ and wallet identifiers for each balance\n\n## Use Cases\n- Dashboard balance\
+        \ display\n- European market operations\n- Euro-denominated financial reporting\n\
+        - Cross-currency balance tracking\n\n## Response Format\nThe response includes\
+        \ both the aggregated total and detailed breakdown, enabling\ncomprehensive\
+        \ euro stablecoin balance management."
+      operationId: BalanceController_getEURCBalance
+      parameters: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AggregatedBalanceResponse"
+          description: EURC balance retrieved successfully
+        "401":
+          description: Unauthorized - Invalid or missing API credentials
+        "404":
+          description: App not found or no access permission
+        "500":
+          description: Internal server error
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get EURC balance for an app
+      tags:
+      - App Balances
+  /api/v0/balance:
+    get:
+      description: "Retrieves both USDC and EURC balances across all wallets for the\
+        \ specified app.\n    \nThis comprehensive endpoint provides:\n- Complete\
+        \ USDC balance aggregation with detailed breakdown\n- Complete EURC balance\
+        \ aggregation with detailed breakdown\n- Total USD equivalent value across\
+        \ both currencies\n- Individual wallet and chain-specific balance details\n\
+        \n## Use Cases\n- Complete financial dashboard overview\n- Multi-currency\
+        \ balance reporting\n- Comprehensive wallet management\n- Cross-currency analytics\
+        \ and reporting\n\n## Response Format\nThe response includes separate aggregations\
+        \ for each currency plus a combined\nUSD value estimate, providing complete\
+        \ visibility into stablecoin holdings."
+      operationId: BalanceController_getAllBalances
+      parameters: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllBalancesResponse"
+          description: All stablecoin balances retrieved successfully
+        "401":
+          description: Unauthorized - Invalid or missing API credentials
+        "404":
+          description: App not found or no access permission
+        "500":
+          description: Internal server error
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get all stablecoin balances for an app
+      tags:
+      - App Balances
+  /api/v0/exchange-rate/usd-to-eur:
+    get:
+      description: "Retrieves the current exchange rate for converting USD to EUR\
+        \ (USDC to EURC).\n    \nThis endpoint provides real-time exchange rate information\
+        \ for stablecoin conversions:\n- Mid-market rate for reference pricing\n-\
+        \ Buy rate for actual conversion calculations\n- Sell rate for reverse conversion\
+        \ scenarios\n\n## Use Cases\n- Display current exchange rates in dashboards\n\
+        - Calculate conversion amounts for USDC to EURC transfers\n- Financial reporting\
+        \ and analytics\n- Real-time pricing for multi-currency operations\n\n## Rate\
+        \ Information\n- **Mid-market rate**: The theoretical middle rate between\
+        \ buy and sell\n- **Buy rate**: Rate used when converting FROM USD TO EUR\
+        \ (what you get)\n- **Sell rate**: Rate used when converting FROM EUR TO USD\
+        \ (what you pay)\n\nThe rates are updated in real-time and reflect current\
+        \ market conditions."
+      operationId: ExchangeRateController_getUSDToEURRate
+      parameters: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponseDto"
+          description: Exchange rate retrieved successfully
+        "401":
+          description: Unauthorized - Invalid or missing API credentials
+        "404":
+          description: App not found or no access permission
+        "500":
+          description: Internal server error
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get USD to EUR exchange rate
+      tags:
+      - Exchange Rates
+  /api/v0/exchange-rate/eur-to-usd:
+    get:
+      description: "Retrieves the current exchange rate for converting EUR to USD\
+        \ (EURC to USDC).\n    \nThis endpoint provides real-time exchange rate information\
+        \ for stablecoin conversions:\n- Mid-market rate for reference pricing\n-\
+        \ Buy rate for actual conversion calculations\n- Sell rate for reverse conversion\
+        \ scenarios\n\n## Use Cases\n- Display current exchange rates in dashboards\n\
+        - Calculate conversion amounts for EURC to USDC transfers\n- Financial reporting\
+        \ and analytics\n- Real-time pricing for multi-currency operations\n\n## Rate\
+        \ Information\n- **Mid-market rate**: The theoretical middle rate between\
+        \ buy and sell\n- **Buy rate**: Rate used when converting FROM EUR TO USD\
+        \ (what you get)\n- **Sell rate**: Rate used when converting FROM USD TO EUR\
+        \ (what you pay)\n\nThe rates are updated in real-time and reflect current\
+        \ market conditions."
+      operationId: ExchangeRateController_getEURToUSDRate
+      parameters: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponseDto"
+          description: Exchange rate retrieved successfully
+        "401":
+          description: Unauthorized - Invalid or missing API credentials
+        "404":
+          description: App not found or no access permission
+        "500":
+          description: Internal server error
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get EUR to USD exchange rate
+      tags:
+      - Exchange Rates
+  /api/v0/exchange-rate:
+    get:
+      description: "Retrieves the current exchange rate between two specified currencies.\n\
+        \    \nThis flexible endpoint allows you to get exchange rates for any supported\
+        \ currency pair:\n- Supports USD and EUR currency codes\n- Provides comprehensive\
+        \ rate information\n- Real-time market data\n\n## Supported Currency Pairs\n\
+        - USD to EUR (USDC to EURC)\n- EUR to USD (EURC to USDC)\n\n## Query Parameters\n\
+        - **from**: Source currency code (usd, eur)\n- **to**: Target currency code\
+        \ (usd, eur)\n\n## Use Cases\n- Flexible exchange rate queries\n- Multi-currency\
+        \ application support\n- Dynamic currency conversion calculations\n- Financial\
+        \ analytics and reporting\n\n## Rate Information\nAll rates are provided with\
+        \ full market context including mid-market, buy, and sell rates."
+      operationId: ExchangeRateController_getExchangeRate
+      parameters:
+      - description: "Source currency code (e.g., usd)"
+        explode: true
+        in: query
+        name: from
+        required: true
+        schema:
+          example: usd
+          type: string
+        style: form
+      - description: "Target currency code (e.g., eur)"
+        explode: true
+        in: query
+        name: to
+        required: true
+        schema:
+          example: eur
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponseDto"
+          description: Exchange rate retrieved successfully
+        "400":
+          description: Bad Request - Invalid currency codes or unsupported currency
+            pair
+        "401":
+          description: Unauthorized - Invalid or missing API credentials
+        "404":
+          description: App not found or no access permission
+        "500":
+          description: Internal server error
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get exchange rate between specified currencies
+      tags:
+      - Exchange Rates
+  /api/v0/products:
+    get:
+      description: "Retrieves a list of products with pagination.\n    \nThis endpoint\
+        \ allows you to fetch products with optional pagination.\n\n## Use Cases\n\
+        - List all products\n- Browse product catalog\n- Implement product search\n\
+        \n## Query Parameters\n- `skip`: Number of records to skip (default: 0)\n\
+        - `take`: Number of records to take (default: 10)\n\n## Example Response\n\
+        ```json\n{\n  \"data\": [\n    {\n      \"id\": \"prod_123456\",\n      \"\
+        name\": \"Premium Widget\",\n      \"description\": \"High-quality widget\
+        \ for all your needs\",\n      \"price\": \"99.99\",\n      \"images\": [\n\
+        \        \"https://storage.example.com/images/file1.jpg\",\n        \"https://storage.example.com/images/file2.jpg\"\
+        \n      ],\n      \"createdAt\": \"2024-03-20T10:00:00Z\"\n    }\n  ],\n \
+        \ \"total\": 100,\n  \"skip\": 0,\n  \"take\": 10\n}\n```"
+      operationId: ProductController_findAll
+      parameters:
+      - description: Number of records to skip
+        explode: true
+        in: query
+        name: skip
+        required: false
+        schema:
+          type: number
+        style: form
+      - description: Number of records to take
+        explode: true
+        in: query
+        name: take
+        required: false
+        schema:
+          type: number
+        style: form
+      responses:
+        "200":
+          description: Return all products.
+        "401":
+          description: Unauthorized - Invalid API credentials
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get all products
+      tags:
+      - Products
+    post:
+      description: "Creates a new product with optional image uploads.\n    \nThis\
+        \ endpoint allows you to create products with detailed information and multiple\
+        \ images.\n\n## Use Cases\n- Add new products to your catalog\n- Create products\
+        \ with multiple images\n- Set up product pricing and descriptions\n\n## Supported\
+        \ Image Formats\n- JPEG/JPG\n- PNG\n- WebP\n- Maximum 10 images per product\n\
+        - Maximum file size: 5MB per image\n\n## Example Request (multipart/form-data)\n\
+        ```\nname: \"Premium Widget\"\ndescription: \"High-quality widget for all\
+        \ your needs\"\nprice: \"99.99\"\nimages: [file1.jpg, file2.jpg]  // Optional,\
+        \ up to 10 images\n```\n\n## Required Fields\n- `name`: Product name\n- `price`:\
+        \ Product price (decimal number)\n\n## Optional Fields\n- `description`: Detailed\
+        \ product description\n- `images`: Product images (up to 10 files)"
+      operationId: ProductController_create
+      parameters: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CreateProductDto"
+        required: true
+      responses:
+        "201":
+          description: The product has been successfully created.
+        "400":
+          description: Bad Request - Invalid input data or image format
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "413":
+          description: Payload Too Large - Image files too large
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a new product
+      tags:
+      - Products
+  /api/v0/products/{id}/images:
+    post:
+      description: "Adds new images to an existing product.\n    \nThis endpoint allows\
+        \ you to upload additional images for a product that already exists.\n\n##\
+        \ Use Cases\n- Add more product images\n- Update product gallery\n- Enhance\
+        \ product presentation\n\n## Supported Image Formats\n- JPEG/JPG\n- PNG\n\
+        - WebP\n- Maximum 10 images per upload\n- Maximum file size: 5MB per image\n\
+        \n## Example Request (multipart/form-data)\n```\nimages: [file1.jpg, file2.jpg]\
+        \  // Up to 10 images\n```\n\n## Notes\n- Images are appended to existing\
+        \ product images\n- Total images per product cannot exceed 10\n- Images are\
+        \ automatically optimized and resized"
+      operationId: ProductController_uploadImage
+      parameters:
+      - description: Product ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "201":
+          description: The images have been successfully uploaded.
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Product not found.
+        "413":
+          description: Payload Too Large - Image files too large
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Upload images for a product
+      tags:
+      - Products
+  /api/v0/products/{id}:
+    delete:
+      description: "Deletes a product and its associated images.\n    \nThis endpoint\
+        \ allows you to remove a product and all its associated data.\n\n## Use Cases\n\
+        - Remove discontinued products\n- Clean up product catalog\n- Delete test\
+        \ products\n\n## Notes\n- This action cannot be undone\n- All product images\
+        \ will be deleted\n- Associated data will be removed"
+      operationId: ProductController_remove
+      parameters:
+      - description: Product ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          description: The product has been successfully deleted.
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Product not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Delete a product
+      tags:
+      - Products
+    get:
+      description: "Retrieves detailed information about a specific product.\n   \
+        \ \nThis endpoint allows you to fetch complete product details including all\
+        \ images.\n\n## Use Cases\n- View product details\n- Display product information\n\
+        - Check product availability\n\n## Example Response\n```json\n{\n  \"id\"\
+        : \"prod_123456\",\n  \"name\": \"Premium Widget\",\n  \"description\": \"\
+        High-quality widget for all your needs\",\n  \"price\": \"99.99\",\n  \"images\"\
+        : [\n    \"https://storage.example.com/images/file1.jpg\",\n    \"https://storage.example.com/images/file2.jpg\"\
+        \n  ],\n  \"createdAt\": \"2024-03-20T10:00:00Z\",\n  \"updatedAt\": \"2024-03-20T10:00:00Z\"\
+        \n}\n```"
+      operationId: ProductController_findOne
+      parameters:
+      - description: Product ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          description: Return the product.
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Product not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get a product by ID
+      tags:
+      - Products
+    put:
+      description: "Updates an existing product's information and optionally adds\
+        \ new images.\n    \nThis endpoint allows you to modify product details and\
+        \ manage product images.\n\n## Use Cases\n- Update product information\n-\
+        \ Change product pricing\n- Modify product images\n- Update product description\n\
+        \n## Example Request (multipart/form-data)\n```\nname: \"Updated Premium Widget\"\
+        \ndescription: \"Updated description\"\nprice: \"129.99\"\nimages: [file1.jpg,\
+        \ file2.jpg]  // Optional, up to 10 images\n```\n\n## Notes\n- Only include\
+        \ fields that need to be updated\n- New images will replace existing images\n\
+        - Maximum 10 images per product\n- Images are automatically optimized"
+      operationId: ProductController_update
+      parameters:
+      - description: Product ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UpdateProductDto"
+        required: true
+      responses:
+        "200":
+          description: The product has been successfully updated.
+        "400":
+          description: Bad Request - Invalid input data or image format
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Product not found.
+        "413":
+          description: Payload Too Large - Image files too large
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Update a product
+      tags:
+      - Products
+  /api/v0/invoices:
+    get:
+      operationId: InvoiceController_findAll
+      parameters:
+      - description: Number of records to skip
+        explode: true
+        in: query
+        name: skip
+        required: false
+        schema:
+          type: number
+        style: form
+      - description: Number of records to take
+        explode: true
+        in: query
+        name: take
+        required: false
+        schema:
+          type: number
+        style: form
+      responses:
+        "200":
+          description: Return all invoices.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get all invoices
+      tags:
+      - Invoices
+    post:
+      operationId: InvoiceController_create
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceDto"
+        required: true
+      responses:
+        "201":
+          description: The invoice has been successfully created.
+        "400":
+          description: Bad Request.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a new invoice
+      tags:
+      - Invoices
+  /api/v0/invoices/{id}:
+    get:
+      operationId: InvoiceController_findOne
+      parameters:
+      - description: Invoice ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          description: Return the invoice.
+        "404":
+          description: Invoice not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get an invoice by ID
+      tags:
+      - Invoices
+    put:
+      operationId: InvoiceController_update
+      parameters:
+      - description: Invoice ID
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceDto"
+        required: true
+      responses:
+        "200":
+          description: The invoice has been successfully updated.
+        "404":
+          description: Invoice not found.
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Update an invoice
+      tags:
+      - Invoices
+  /api/v0/taxes:
+    delete:
+      description: "This endpoint requires a tax ID in the URL path. Use DELETE /api/v0/taxes/{id}\
+        \ instead."
+      operationId: TaxController_deleteWithoutId
+      parameters: []
+      responses:
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaxController_deleteWithoutId_400_response"
+          description: Bad Request - Tax ID is required in the URL path
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Tax ID required for deletion
+      tags:
+      - Taxes
+    get:
+      description: |-
+        Retrieves a list of taxes with optional filtering and pagination.
+
+        ## Use Cases
+        - List all available tax rates
+        - Search taxes by name
+        - Filter active/inactive taxes
+        - Export tax configuration
+
+        ## Query Parameters
+        - `skip`: Number of records to skip (default: 0, min: 0)
+        - `take`: Number of records to return (default: 10, min: 1, max: 100)
+        - `name`: Filter taxes by name (partial match, case-insensitive)
+        - `active`: Filter by active status (true/false)
+
+        ## Example Request
+        `GET /api/v0/taxes?skip=0&take=20&active=true&name=Sales`
+
+        ## Example Response
+        ```json
+        [
+          {
+            "id": "tax_123456",
+            "name": "Sales Tax",
+            "description": "Standard sales tax for retail transactions",
+            "percentage": 8.5,
+            "active": true,
+            "created_at": "2024-03-20T10:00:00Z",
+            "updated_at": "2024-03-20T10:00:00Z"
+          }
+        ]
+        ```
+      operationId: TaxController_findAll
+      parameters:
+      - description: Number of records to skip for pagination
+        explode: true
+        in: query
+        name: skip
+        required: false
+        schema:
+          default: 0
+          example: 0
+          minimum: 0
+          type: number
+        style: form
+      - description: Number of records to return (max 100)
+        explode: true
+        in: query
+        name: take
+        required: false
+        schema:
+          default: 10
+          example: 10
+          maximum: 100
+          minimum: 1
+          type: number
+        style: form
+      - description: "Filter taxes by name (partial match, case-insensitive)"
+        explode: true
+        in: query
+        name: name
+        required: false
+        schema:
+          example: Sales
+          maxLength: 100
+          type: string
+        style: form
+      - description: Filter by active status
+        explode: true
+        in: query
+        name: active
+        required: false
+        schema:
+          example: true
+          type: boolean
+        style: form
+      responses:
+        "200":
+          description: Successfully retrieved taxes
+        "400":
+          description: Bad Request - Invalid query parameters
+        "401":
+          description: Unauthorized - Invalid API credentials
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get all taxes with filters
+      tags:
+      - Taxes
+    post:
+      description: |-
+        Creates a new tax rate that can be applied to products, invoices, and payment links.
+
+        ## Use Cases
+        - Set up sales tax for different regions
+        - Create VAT rates for international customers
+        - Configure state and local tax rates
+        - Manage tax compliance requirements
+
+        ## Example: Create Basic Sales Tax
+        ```json
+        {
+          "name": "Sales Tax",
+          "description": "Standard sales tax for retail transactions",
+          "percentage": 8.5,
+          "active": true
+        }
+        ```
+
+        ## Required Fields
+        - `name`: Tax name for identification (1-100 characters)
+        - `percentage`: Tax rate percentage (0-100)
+
+        ## Optional Fields
+        - `description`: Explanation of what this tax covers (max 255 characters)
+        - `active`: Whether this tax is currently active (default: true)
+        - `appIds`: Array of app IDs where this tax should be available
+      operationId: TaxController_create
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaxDto"
+        description: Tax creation data
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaxController_create_201_response"
+          description: Tax created successfully
+        "400":
+          description: Bad Request - Invalid input data
+        "401":
+          description: Unauthorized - Invalid API credentials
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Create a new tax
+      tags:
+      - Taxes
+    put:
+      description: "This endpoint requires a tax ID in the URL path. Use PUT /api/v0/taxes/{id}\
+        \ instead."
+      operationId: TaxController_updateWithoutId
+      parameters: []
+      responses:
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaxController_updateWithoutId_400_response"
+          description: Bad Request - Tax ID is required in the URL path
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Tax ID required for updates
+      tags:
+      - Taxes
+  /api/v0/taxes/{id}:
+    delete:
+      description: |-
+        Deletes an existing tax.
+
+        ## Use Cases
+        - Remove obsolete tax rates
+        - Clean up unused taxes
+        - Comply with regulatory changes
+
+        ## Path Parameters
+        - `id`: Tax UUID (required) - Must be a valid UUID format
+
+        ## Example Request
+        `DELETE /api/v0/taxes/123e4567-e89b-12d3-a456-426614174000`
+
+        ## Warning
+        This action cannot be undone. Consider deactivating the tax instead of deleting it if it has been used in transactions.
+      operationId: TaxController_remove
+      parameters:
+      - description: Tax unique identifier (UUID)
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          description: Successfully deleted tax
+        "400":
+          description: Bad Request - Invalid tax ID format
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Not Found - Tax not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Delete a tax
+      tags:
+      - Taxes
+    get:
+      description: |-
+        Retrieves detailed information about a specific tax.
+
+        ## Use Cases
+        - View tax details
+        - Verify tax configuration
+        - Check tax status before applying to products
+
+        ## Path Parameters
+        - `id`: Tax UUID (required) - Must be a valid UUID format
+
+        ## Example Request
+        `GET /api/v0/taxes/123e4567-e89b-12d3-a456-426614174000`
+
+        ## Example Response
+        ```json
+        {
+          "id": "tax_123456",
+          "name": "Sales Tax",
+          "description": "Standard sales tax for retail transactions",
+          "percentage": 8.5,
+          "active": true,
+          "created_at": "2024-03-20T10:00:00Z",
+          "updated_at": "2024-03-20T10:00:00Z"
+        }
+        ```
+      operationId: TaxController_findOne
+      parameters:
+      - description: Tax unique identifier (UUID)
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      responses:
+        "200":
+          description: Successfully retrieved tax
+        "400":
+          description: Bad Request - Invalid tax ID format
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Not Found - Tax not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Get a tax by ID
+      tags:
+      - Taxes
+    put:
+      description: |-
+        Updates an existing tax's information.
+
+        ## Use Cases
+        - Modify tax percentage rates
+        - Update tax descriptions
+        - Activate/deactivate taxes
+        - Change tax names
+
+        ## Path Parameters
+        - `id`: Tax UUID (required) - Must be a valid UUID format
+
+        ## Example Request
+        `PUT /api/v0/taxes/123e4567-e89b-12d3-a456-426614174000`
+
+        ## Example Request Body
+        ```json
+        {
+          "name": "Updated Sales Tax",
+          "description": "Updated sales tax rate",
+          "percentage": 9.0,
+          "active": true
+        }
+        ```
+
+        ## Notes
+        - Only include fields that need to be updated
+        - All fields are optional in updates
+        - Percentage changes affect future calculations only
+      operationId: TaxController_update
+      parameters:
+      - description: Tax unique identifier (UUID)
+        explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaxDto"
+        description: Tax update data - only include fields you want to update
+        required: true
+      responses:
+        "200":
+          description: Successfully updated tax
+        "400":
+          description: Bad Request - Invalid input data or tax ID format
+        "401":
+          description: Unauthorized - Invalid API credentials
+        "404":
+          description: Not Found - Tax not found
+      security:
+      - x-client-secret: []
+      - x-client-key: []
+      summary: Update a tax
+      tags:
+      - Taxes
+components:
+  schemas:
+    UpdatePreferenceInput:
+      properties: {}
+      type: object
+    HealthResponseDto:
+      example:
+        authenticated: true
+        database: connected
+        message: Service is up and running
+        version: 1.0.0
+        status: ok
+        timestamp: 2023-07-01T12:00:00Z
+      properties:
+        status:
+          description: "Overall health status of the service. Returns \"ok\" when\
+            \ healthy, \"error\" when issues detected."
+          enum:
+          - ok
+          - error
+          example: ok
+          type: string
+        timestamp:
+          description: ISO 8601 timestamp when the health check was performed.
+          example: 2023-07-01T12:00:00Z
+          format: date-time
+          type: string
+        version:
+          description: Current version of the API service. Useful for debugging and
+            compatibility checks.
+          example: 1.0.0
+          type: string
+        database:
+          description: "Database connectivity status. Shows \"connected\" when database\
+            \ is accessible, \"error\" when connection fails."
+          enum:
+          - connected
+          - error
+          example: connected
+          type: string
+        message:
+          description: Human-readable message describing the current health status
+            and any issues.
+          example: Service is up and running
+          type: string
+        authenticated:
+          description: Indicates whether the request was properly authenticated. Always
+            true for this endpoint since authentication is required.
+          example: true
+          type: boolean
+      required:
+      - authenticated
+      - database
+      - message
+      - status
+      - timestamp
+      - version
+      type: object
+    PublicHealthResponseDto:
+      example:
+        version: 1.0.0
+        status: ok
+        timestamp: 2023-07-01T12:00:00Z
+      properties:
+        status:
+          description: Basic health status of the service. Returns "ok" when the service
+            is responding.
+          enum:
+          - ok
+          - error
+          example: ok
+          type: string
+        timestamp:
+          description: ISO 8601 timestamp when the health check was performed.
+          example: 2023-07-01T12:00:00Z
+          format: date-time
+          type: string
+        version:
+          description: Current version of the API service.
+          example: 1.0.0
+          type: string
+      required:
+      - status
+      - timestamp
+      - version
+      type: object
+    PaymentResponseDto:
+      example:
+        amount: 100.5
+        currency: USD
+        id: pay_12345abcdef
+        status: succeeded
+        timestamp: 2023-07-01T12:00:00.000Z
+      properties:
+        id:
+          description: Payment ID
+          example: pay_12345abcdef
+          type: string
+        amount:
+          description: The amount charged
+          example: 100.5
+          type: number
+        currency:
+          description: The currency code
+          example: USD
+          type: string
+        status:
+          description: Payment status
+          example: succeeded
+          type: string
+        timestamp:
+          description: Timestamp of the payment
+          example: 2023-07-01T12:00:00.000Z
+          type: string
+      required:
+      - amount
+      - currency
+      - id
+      - status
+      - timestamp
+      type: object
+    RefundResponseDto:
+      example:
+        amount: 100.5
+        paymentId: pay_12345abcdef
+        id: ref_12345abcdef
+        status: succeeded
+        timestamp: 2023-07-01T12:00:00.000Z
+      properties:
+        id:
+          description: Refund ID
+          example: ref_12345abcdef
+          type: string
+        paymentId:
+          description: Original payment ID
+          example: pay_12345abcdef
+          type: string
+        amount:
+          description: The amount refunded
+          example: 100.5
+          type: number
+        status:
+          description: Refund status
+          example: succeeded
+          type: string
+        timestamp:
+          description: Timestamp of the refund
+          example: 2023-07-01T12:00:00.000Z
+          type: string
+      required:
+      - amount
+      - id
+      - paymentId
+      - status
+      - timestamp
+      type: object
+    PaymentRequestDto:
+      example:
+        amount: 100.5
+        customerId: cus_12345
+        description: Test payment for API
+        currency: USD
+      properties:
+        amount:
+          description: The amount to charge
+          example: 100.5
+          type: number
+        currency:
+          description: The currency code
+          example: USD
+          type: string
+        description:
+          description: Description of the payment
+          example: Test payment for API
+          type: string
+        customerId:
+          description: Customer reference ID
+          example: cus_12345
+          type: string
+      required:
+      - amount
+      - currency
+      - description
+      type: object
+    CustomerType:
+      description: Type of customer account. Determines available features and compliance
+        requirements.
+      enum:
+      - Individual
+      - Startup
+      - Small Business
+      - Medium Business
+      - Enterprise
+      - Non-Profit
+      - Government
+      type: string
+    CustomerStatus:
+      description: Current status of the customer account. Controls access to services
+        and features.
+      enum:
+      - ACTIVE
+      - BLACKLISTED
+      - DEACTIVATED
+      - DELETED
+      type: string
+    CreateCustomerDto:
+      example:
+        customer_type: Individual
+        last_name: Doe
+        phone_number: +1-555-123-4567
+        first_name: John
+        email: john.doe@example.com
+        status: ACTIVE
+      properties:
+        first_name:
+          description: Customer's first name. Used for personalization and legal documentation.
+          example: John
+          maxLength: 100
+          minLength: 1
+          type: string
+        last_name:
+          description: Customer's last name. Used for personalization and legal documentation.
+          example: Doe
+          maxLength: 100
+          minLength: 1
+          type: string
+        email:
+          description: "Customer's email address. Used for notifications, receipts,\
+            \ and account management. Must be a valid email format."
+          example: john.doe@example.com
+          format: email
+          type: string
+        phone_number:
+          description: Customer's phone number. Used for SMS notifications and verification.
+            Include country code for international numbers.
+          example: +1-555-123-4567
+          pattern: "^[+]?[1-9]\\d{1,14}$"
+          type: string
+        customer_type:
+          allOf:
+          - $ref: "#/components/schemas/CustomerType"
+          default: Individual
+          description: Type of customer account. Determines available features and
+            compliance requirements.
+          example: Individual
+        status:
+          allOf:
+          - $ref: "#/components/schemas/CustomerStatus"
+          default: ACTIVE
+          description: Current status of the customer account. Controls access to
+            services and features.
+          example: ACTIVE
+      required:
+      - first_name
+      - last_name
+      - phone_number
+      type: object
+    UpdateCustomerDto:
+      example:
+        customer_type: Individual
+        last_name: Doe
+        phone_number: +1-555-123-4567
+        first_name: John
+        email: john.doe@example.com
+        status: ACTIVE
+      properties:
+        first_name:
+          description: Customer's first name. Used for personalization and legal documentation.
+          example: John
+          maxLength: 100
+          minLength: 1
+          type: string
+        last_name:
+          description: Customer's last name. Used for personalization and legal documentation.
+          example: Doe
+          maxLength: 100
+          minLength: 1
+          type: string
+        email:
+          description: "Customer's email address. Used for notifications, receipts,\
+            \ and account management. Must be a valid email format."
+          example: john.doe@example.com
+          format: email
+          type: string
+        phone_number:
+          description: Customer's phone number. Used for SMS notifications and verification.
+            Include country code for international numbers.
+          example: +1-555-123-4567
+          pattern: "^[+]?[1-9]\\d{1,14}$"
+          type: string
+        customer_type:
+          allOf:
+          - $ref: "#/components/schemas/CustomerType"
+          default: Individual
+          description: Type of customer account. Determines available features and
+            compliance requirements.
+          example: Individual
+        status:
+          allOf:
+          - $ref: "#/components/schemas/CustomerStatus"
+          default: ACTIVE
+          description: Current status of the customer account. Controls access to
+            services and features.
+          example: ACTIVE
+      type: object
+    PaymentLinkProductDto:
+      properties:
+        productId:
+          description: UUID of the product to include in this payment link. Must be
+            a valid product from your catalog.
+          example: 123e4567-e89b-12d3-a456-426614174000
+          format: uuid
+          type: string
+        quantity:
+          default: 1
+          description: Quantity of this product to include. Must be at least 1.
+          example: 2
+          minimum: 1
+          type: integer
+      required:
+      - productId
+      - quantity
+      type: object
+    CreatePaymentLinkDto:
+      example:
+        paymentForId: sub_123456789
+        allowMobilePayment: true
+        collectAddress: true
+        limitPayments: true
+        amount: 29.99
+        customFields:
+          customField1: value1
+          customField2: value2
+        paymentLinkProducts:
+        - productId: 123e4567-e89b-12d3-a456-426614174003
+          quantity: 1
+        - productId: 123e4567-e89b-12d3-a456-426614174004
+          quantity: 2
+        description: Get access to all premium features with our monthly subscription
+          plan. Includes priority support and advanced analytics.
+        title: Premium Subscription
+        expiration_date: 2024-12-31T23:59:59Z
+        url: premium-subscription
+        isForAllProduct: false
+        allowQuantityAdjustment: true
+        collectTax: true
+        taxId: 123e4567-e89b-12d3-a456-426614174005
+        coverImage: https://example.com/images/premium-subscription.jpg
+        customerId: 123e4567-e89b-12d3-a456-426614174002
+        linkType: PRODUCT
+        currency: usdc
+        maxPayments: 100
+      properties:
+        title:
+          description: Display title for the payment link. This appears on the checkout
+            page and in customer communications.
+          example: Premium Subscription
+          maxLength: 100
+          minLength: 3
+          type: string
+        url:
+          description: Unique URL slug for the payment link. Can be a full URL or
+            just the path segment. Must be unique within your account.
+          example: premium-subscription
+          type: string
+        description:
+          description: Detailed description of what the customer is purchasing. Supports
+            markdown formatting.
+          example: Get access to all premium features with our monthly subscription
+            plan. Includes priority support and advanced analytics.
+          maxLength: 500
+          type: string
+        coverImage:
+          description: Cover image URL
+          example: https://example.com/images/premium-subscription.jpg
+          type: string
+        linkType:
+          description: Type of the payment link
+          enum:
+          - INVOICE
+          - PRODUCT
+          - COLLECTION
+          - DONATION
+          example: PRODUCT
+          type: string
+        amount:
+          description: Amount for the payment link
+          example: 29.99
+          minimum: 0.01
+          type: number
+        paymentForId:
+          description: Payment for ID
+          example: sub_123456789
+          type: string
+        customerId:
+          description: Customer ID
+          example: 123e4567-e89b-12d3-a456-426614174002
+          type: string
+        paymentLinkProducts:
+          description: Array of products in the payment link
+          example:
+          - productId: 123e4567-e89b-12d3-a456-426614174003
+            quantity: 1
+          - productId: 123e4567-e89b-12d3-a456-426614174004
+            quantity: 2
+          items:
+            $ref: "#/components/schemas/PaymentLinkProductDto"
+          type: array
+        isForAllProduct:
+          default: false
+          description: Whether the payment link is for all products
+          example: false
+          type: boolean
+        allowQuantityAdjustment:
+          default: true
+          description: Whether to allow quantity adjustment
+          example: true
+          type: boolean
+        collectTax:
+          default: false
+          description: Whether to collect tax
+          example: true
+          type: boolean
+        taxId:
+          description: Tax ID
+          example: 123e4567-e89b-12d3-a456-426614174005
+          type: string
+        collectAddress:
+          default: false
+          description: Whether to collect address
+          example: true
+          type: boolean
+        limitPayments:
+          default: false
+          description: Whether to limit payments
+          example: true
+          type: boolean
+        maxPayments:
+          description: Maximum number of payments
+          example: 100
+          minimum: 1
+          type: number
+        customFields:
+          description: Custom fields
+          example:
+            customField1: value1
+            customField2: value2
+          type: object
+        allowMobilePayment:
+          default: false
+          description: Whether to allow mobile payment
+          example: true
+          type: boolean
+        currency:
+          default: usdc
+          description: Currency
+          enum:
+          - usdc
+          - eurc
+          example: usdc
+          type: string
+        expiration_date:
+          description: Expiration date
+          example: 2024-12-31T23:59:59Z
+          format: date-time
+          type: string
+      required:
+      - allowMobilePayment
+      - allowQuantityAdjustment
+      - collectAddress
+      - collectTax
+      - currency
+      - linkType
+      - title
+      - url
+      type: object
+    UpdatePaymentLinkDto:
+      properties: {}
+      type: object
+    StableCoinCurrency:
+      description: The stablecoin currency to convert FROM. This is the currency the
+        customer will pay with.
+      enum:
+      - usdc
+      - eurc
+      type: string
+    BridgePaymentRail:
+      description: The blockchain network where the source currency resides. Determines
+        gas fees and transaction speed.
+      enum:
+      - ethereum
+      - solana
+      - polygon
+      - avalanche_c_chain
+      - base
+      - arbitrum
+      - optimism
+      - stellar
+      - tron
+      - bridge_wallet
+      - wire
+      - ach
+      - ach_push
+      - ach_same_day
+      - sepa
+      - swift
+      - spei
+      type: string
+    CreateStablePaymentIntentDto:
+      example:
+        customer_address: "123 Main St, New York, NY 10001"
+        amount: "100.50"
+        destinationAddress: 0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8e1
+        customer_country: United States
+        customer_first_name: John
+        customer_province: New York
+        sourceCurrency: usdc
+        destinationNetwork: polygon
+        customer_provinceISO: NY
+        customer_last_name: Doe
+        phoneNumber: +1-555-123-4567
+        sourceNetwork: ethereum
+        customer_email: john.doe@example.com
+        destinationCurrency: eurc
+        customer_countryISO: US
+      properties:
+        sourceCurrency:
+          allOf:
+          - $ref: "#/components/schemas/StableCoinCurrency"
+          description: The stablecoin currency to convert FROM. This is the currency
+            the customer will pay with.
+          example: usdc
+        sourceNetwork:
+          allOf:
+          - $ref: "#/components/schemas/BridgePaymentRail"
+          description: The blockchain network where the source currency resides. Determines
+            gas fees and transaction speed.
+          example: ethereum
+        destinationCurrency:
+          allOf:
+          - $ref: "#/components/schemas/StableCoinCurrency"
+          description: "The stablecoin currency to convert TO. If omitted, defaults\
+            \ to the same as source currency (cross-chain transfer)."
+          example: eurc
+        destinationNetwork:
+          allOf:
+          - $ref: "#/components/schemas/BridgePaymentRail"
+          description: The blockchain network where the converted currency will be
+            delivered. Must support the destination currency.
+          example: polygon
+        destinationAddress:
+          description: The wallet address where converted funds will be sent. Supports
+            Ethereum (0x...) and Solana address formats.
+          example: 0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8e1
+          type: string
+        amount:
+          description: Payment amount in the source currency. Omit for flexible amount
+            payments where users specify the amount during checkout.
+          example: "100.50"
+          minimum: 0.01
+          pattern: "^\\d+(\\.\\d{1,6})?$"
+          type: string
+        customer_first_name:
+          description: Customer's first name. Used for transaction records and compliance.
+            Required for amounts over $1000.
+          example: John
+          maxLength: 100
+          type: string
+        customer_last_name:
+          description: Customer's last name. Used for transaction records and compliance.
+            Required for amounts over $1000.
+          example: Doe
+          maxLength: 100
+          type: string
+        customer_email:
+          description: Customer's email address. Used for transaction notifications
+            and receipts. Highly recommended for all transactions.
+          example: john.doe@example.com
+          format: email
+          maxLength: 255
+          type: string
+        customer_address:
+          description: Customer's full address. Required for compliance in certain
+            jurisdictions and high-value transactions.
+          example: "123 Main St, New York, NY 10001"
+          maxLength: 500
+          type: string
+        customer_country:
+          description: Customer's country of residence. Used for compliance and tax
+            reporting.
+          example: United States
+          maxLength: 100
+          type: string
+        customer_countryISO:
+          description: Customer's country ISO 3166-1 alpha-2 code. Used for automated
+            compliance checks.
+          example: US
+          maxLength: 2
+          pattern: "^[A-Z]{2}$"
+          type: string
+        customer_province:
+          description: Customer's state or province. Required for US and Canadian
+            customers.
+          example: New York
+          maxLength: 100
+          type: string
+        customer_provinceISO:
+          description: Customer's state or province ISO code. Used for automated tax
+            calculations.
+          example: NY
+          maxLength: 10
+          type: string
+        phoneNumber:
+          description: Customer's phone number with country code. Used for SMS notifications
+            and verification.
+          example: +1-555-123-4567
+          maxLength: 20
+          pattern: "^[+]?[\\d\\s\\-\\(\\)]+$"
+          type: string
+      required:
+      - destinationNetwork
+      - sourceCurrency
+      - sourceNetwork
+      type: object
+    FiatCurrency:
+      description: The fiat currency to convert FROM. Must match the currency of the
+        source payment rail.
+      enum:
+      - usd
+      - eur
+      - mxn
+      type: string
+    CreateBankPaymentIntentDto:
+      example:
+        sepa_reference: REF-123456789
+        customer_address: "123 Main St, New York, NY 10001"
+        amount: "1000.00"
+        destinationAddress: 0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8e1
+        customer_country: United States
+        customer_first_name: John
+        customer_province: New York
+        sourceCurrency: usd
+        sourcePaymentRail: ach_push
+        destinationNetwork: ethereum
+        ach_reference: ACH123456
+        customer_provinceISO: NY
+        customer_last_name: Doe
+        phoneNumber: +1-555-123-4567
+        customer_email: john.doe@example.com
+        destinationCurrency: usdc
+        wire_message: "Payment for invoice #12345"
+        customer_countryISO: US
+      properties:
+        sourcePaymentRail:
+          allOf:
+          - $ref: "#/components/schemas/BridgePaymentRail"
+          description: The banking payment method to use for the transfer. Determines
+            processing time and fees.
+          example: ach_push
+        sourceCurrency:
+          allOf:
+          - $ref: "#/components/schemas/FiatCurrency"
+          default: usd
+          description: The fiat currency to convert FROM. Must match the currency
+            of the source payment rail.
+          example: usd
+        destinationCurrency:
+          allOf:
+          - $ref: "#/components/schemas/StableCoinCurrency"
+          description: The stablecoin currency to convert TO. The customer will receive
+            this currency.
+          example: usdc
+        destinationNetwork:
+          allOf:
+          - $ref: "#/components/schemas/BridgePaymentRail"
+          description: The blockchain network where the stablecoin will be delivered.
+            Must support the destination currency.
+          example: ethereum
+        destinationAddress:
+          description: Destination wallet address. Supports Ethereum (0x...) and Solana
+            address formats.
+          example: 0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8e1
+          type: string
+        amount:
+          description: Payment amount (optional for flexible amount)
+          example: "1000.00"
+          type: string
+        customer_first_name:
+          description: Customer first name
+          example: John
+          type: string
+        customer_last_name:
+          description: Customer last name
+          example: Doe
+          type: string
+        customer_email:
+          description: Customer email address
+          example: john.doe@example.com
+          type: string
+        customer_address:
+          description: Customer address
+          example: "123 Main St, New York, NY 10001"
+          type: string
+        customer_country:
+          description: Customer country
+          example: United States
+          type: string
+        customer_countryISO:
+          description: Customer country ISO code
+          example: US
+          type: string
+        customer_province:
+          description: Customer province/state
+          example: New York
+          type: string
+        customer_provinceISO:
+          description: Customer province/state ISO code
+          example: NY
+          type: string
+        phoneNumber:
+          description: Customer phone number
+          example: +1-555-123-4567
+          type: string
+        wire_message:
+          description: Wire transfer message (for WIRE transfers)
+          example: "Payment for invoice #12345"
+          maxLength: 256
+          type: string
+        sepa_reference:
+          description: SEPA reference (for SEPA transfers)
+          example: REF-123456789
+          maxLength: 140
+          minLength: 6
+          type: string
+        ach_reference:
+          description: ACH reference (for ACH transfers)
+          example: ACH123456
+          maxLength: 10
+          type: string
+      required:
+      - destinationCurrency
+      - destinationNetwork
+      - sourceCurrency
+      - sourcePaymentRail
+      type: object
+    CreateWebhookDto:
+      example:
+        signing_secret: whsec_123456789
+        encrypted: false
+        name: Payment Notifications
+        isActive: true
+        url: https://api.example.com/webhooks/payments
+      properties:
+        name:
+          description: Name of the webhook for identification purposes
+          example: Payment Notifications
+          maxLength: 100
+          minLength: 3
+          type: string
+        url:
+          description: URL where webhook events will be sent
+          example: https://api.example.com/webhooks/payments
+          format: uri
+          type: string
+        isActive:
+          default: true
+          description: Whether the webhook is active and will receive events
+          example: true
+          type: boolean
+        signing_secret:
+          description: Secret key used to sign webhook payloads for verification
+          example: whsec_123456789
+          type: string
+        encrypted:
+          default: false
+          description: Whether webhook payloads should be encrypted
+          example: false
+          type: boolean
+      required:
+      - encrypted
+      - isActive
+      - name
+      - url
+      type: object
+    WebhookResponseDto:
+      example:
+        encrypted: false
+        updated_at: 2024-03-20T12:00:00.000Z
+        name: Payment Notifications
+        delivery_stats:
+          total_events: 150
+          successful_deliveries: 145
+          failed_deliveries: 5
+          last_delivery: 2024-03-20T11:55:00.000Z
+        created_at: 2024-03-20T12:00:00.000Z
+        id: 550e8400-e29b-41d4-a716-446655440000
+        isActive: true
+        url: https://api.example.com/webhooks/payments
+      properties:
+        id:
+          description: Unique identifier for the webhook
+          example: 550e8400-e29b-41d4-a716-446655440000
+          type: string
+        name:
+          description: Name of the webhook
+          example: Payment Notifications
+          type: string
+        url:
+          description: URL where webhook events are sent
+          example: https://api.example.com/webhooks/payments
+          type: string
+        isActive:
+          description: Whether the webhook is currently active
+          example: true
+          type: boolean
+        encrypted:
+          description: Whether webhook payloads are encrypted
+          example: false
+          type: boolean
+        created_at:
+          description: Timestamp when the webhook was created
+          example: 2024-03-20T12:00:00.000Z
+          type: string
+        updated_at:
+          description: Timestamp when the webhook was last updated
+          example: 2024-03-20T12:00:00.000Z
+          type: string
+        delivery_stats:
+          description: Webhook delivery statistics
+          example:
+            total_events: 150
+            successful_deliveries: 145
+            failed_deliveries: 5
+            last_delivery: 2024-03-20T11:55:00.000Z
+          type: object
+      required:
+      - created_at
+      - delivery_stats
+      - encrypted
+      - id
+      - isActive
+      - name
+      - updated_at
+      - url
+      type: object
+    UpdateWebhookDto:
+      example:
+        signing_secret: whsec_123456789
+        encrypted: false
+        name: Payment Notifications
+        isActive: true
+        url: https://api.example.com/webhooks/payments
+      properties:
+        name:
+          description: Name of the webhook for identification purposes
+          example: Payment Notifications
+          maxLength: 100
+          minLength: 3
+          type: string
+        url:
+          description: URL where webhook events will be sent
+          example: https://api.example.com/webhooks/payments
+          format: uri
+          type: string
+        isActive:
+          default: true
+          description: Whether the webhook is active and will receive events
+          example: true
+          type: boolean
+        signing_secret:
+          description: Secret key used to sign webhook payloads for verification
+          example: whsec_123456789
+          type: string
+        encrypted:
+          default: false
+          description: Whether webhook payloads should be encrypted
+          example: false
+          type: boolean
+      type: object
+    CreateDirectWalletTransferDto:
+      example:
+        walletId: walletId
+        stableCoinCurrency: stableCoinCurrency
+        amount: 0.8008281904610115
+        network: network
+      properties:
+        walletId:
+          description: The ID of the bridge wallet to transfer from
+          type: string
+        network:
+          description: The network to use for the transfer
+          type: string
+        stableCoinCurrency:
+          description: The stablecoin currency to use
+          type: string
+        amount:
+          description: The amount to transfer
+          type: number
+      required:
+      - amount
+      - network
+      - stableCoinCurrency
+      - walletId
+      type: object
+    CreateDirectBankTransferDto:
+      example:
+        sepa_reference: sepa_reference
+        walletId: walletId
+        amount: 0.8008281904610115
+        paymentRail: paymentRail
+        destinationCurrency: destinationCurrency
+        sourceCurrency: sourceCurrency
+        wire_message: wire_message
+        ach_reference: ach_reference
+      properties:
+        walletId:
+          description: The ID of the bridge wallet to transfer from
+          type: string
+        paymentRail:
+          description: The payment rail to use
+          type: string
+        destinationCurrency:
+          description: The destination currency
+          type: string
+        sourceCurrency:
+          description: The source currency
+          type: string
+        amount:
+          description: The amount to transfer
+          type: number
+        wire_message:
+          description: Wire transfer message
+          type: string
+        sepa_reference:
+          description: SEPA transfer reference
+          type: string
+        ach_reference:
+          description: ACH transfer reference
+          type: string
+      required:
+      - amount
+      - destinationCurrency
+      - paymentRail
+      - sourceCurrency
+      - walletId
+      type: object
+    CreateStablecoinConversionDto:
+      example:
+        walletId: walletId
+        amount: 0.8008281904610115
+        sourceNetwork: sourceNetwork
+        destinationCurrency: destinationCurrency
+        sourceCurrency: sourceCurrency
+      properties:
+        walletId:
+          description: The ID of the bridge wallet to use
+          type: string
+        sourceNetwork:
+          description: The source network
+          type: string
+        sourceCurrency:
+          description: The source currency
+          type: string
+        destinationCurrency:
+          description: The destination currency
+          type: string
+        amount:
+          description: The amount to convert
+          type: number
+      required:
+      - amount
+      - destinationCurrency
+      - sourceCurrency
+      - sourceNetwork
+      - walletId
+      type: object
+    BridgeFiatPaymentRail:
+      description: The destination payment rail (fiat payment method)
+      enum:
+      - ach
+      - ach_push
+      - ach_same_day
+      - wire
+      - sepa
+      - swift
+      - spei
+      type: string
+    CreateExternalBankTransferDto:
+      example:
+        sourceWalletId: sourceWalletId
+        sepa_reference: sepa_reference
+        amount: 0.8008281904610115
+        swift_reference: swift_reference
+        external_account_id: external_account_id
+        destinationCurrency: destinationCurrency
+        spei_reference: spei_reference
+        sourceCurrency: sourceCurrency
+        destinationPaymentRail: ""
+        swift_charges: swift_charges
+        wire_message: wire_message
+        ach_reference: ach_reference
+      properties:
+        sourceWalletId:
+          description: The ID of the source bridge wallet
+          type: string
+        sourceCurrency:
+          description: The source currency
+          type: string
+        destinationCurrency:
+          description: The destination currency
+          type: string
+        destinationPaymentRail:
+          allOf:
+          - $ref: "#/components/schemas/BridgeFiatPaymentRail"
+          description: The destination payment rail (fiat payment method)
+        external_account_id:
+          description: The external account ID for the bank transfer
+          type: string
+        amount:
+          description: The amount to transfer
+          type: number
+        wire_message:
+          description: "Wire transfer message (1-256 characters, only for wire transfers)"
+          maxLength: 256
+          minLength: 1
+          type: string
+        sepa_reference:
+          description: "SEPA reference message (6-140 characters, only for SEPA transfers)"
+          maxLength: 140
+          minLength: 6
+          type: string
+        swift_reference:
+          description: "SWIFT reference message (1-190 characters, only for SWIFT\
+            \ transfers)"
+          maxLength: 190
+          minLength: 1
+          type: string
+        spei_reference:
+          description: "SPEI reference message (1-40 characters, only for SPEI transfers)"
+          maxLength: 40
+          minLength: 1
+          type: string
+        swift_charges:
+          description: SWIFT charges bearer (only for SWIFT transfers)
+          type: string
+        ach_reference:
+          description: "ACH reference message (1-10 characters, only for ACH transfers)"
+          maxLength: 10
+          minLength: 1
+          type: string
+      required:
+      - destinationCurrency
+      - destinationPaymentRail
+      - external_account_id
+      - sourceCurrency
+      - sourceWalletId
+      type: object
+    CreateExternalStablecoinTransferDto:
+      example:
+        sourceWalletId: sourceWalletId
+        amount: 0.8008281904610115
+        blockchain_memo: blockchain_memo
+        destinationCurrency: destinationCurrency
+        sourceCurrency: sourceCurrency
+        beneficiaryId: beneficiary_12345
+      properties:
+        sourceWalletId:
+          description: The ID of the source bridge wallet
+          type: string
+        sourceCurrency:
+          description: The source currency
+          type: string
+        destinationCurrency:
+          description: The destination currency
+          type: string
+        blockchain_memo:
+          description: Blockchain memo for the transfer
+          type: string
+        beneficiaryId:
+          description: Beneficiary ID for the stablecoin transfer
+          example: beneficiary_12345
+          type: string
+        amount:
+          description: The amount to transfer
+          type: number
+      required:
+      - beneficiaryId
+      - destinationCurrency
+      - sourceCurrency
+      - sourceWalletId
+      type: object
+    DestinationCurrency:
+      description: Currency for sending funds
+      enum:
+      - usd
+      - eur
+      - mxn
+      - usdc
+      - eurc
+      - dai
+      - pyusd
+      - usdt
+      type: string
+    CreateLiquidationAddressDto:
+      example:
+        chain: ethereum
+        address: 0x4d0280da2f2fDA5103914bCc5aad114743152A9c
+        destination_address: 0x1234567890abcdef1234567890abcdef12345678
+        destination_wire_message: Liquidation payment for customer
+        destination_ach_reference: ACH123
+        bridge_wallet_id: bw_123
+        external_account_id: ext_123
+        prefunded_account_id: pf_acc_123
+        destination_payment_rail: sepa
+        custom_developer_fee_percent: "2.5"
+        return_address: 0xabcdefabcdefabcdefabcdefabcdefabcdef
+        destination_currency: eur
+        currency: usdc
+        destination_blockchain_memo: liquidation-memo-123
+        destination_sepa_reference: SEPA-REF-123456
+      properties:
+        chain:
+          description: The blockchain chain for the liquidation address
+          enum:
+          - ethereum
+          - solana
+          - polygon
+          - avalanche_c_chain
+          - base
+          - arbitrum
+          - optimism
+          - stellar
+          - tron
+          example: ethereum
+          type: string
+        currency:
+          description: The currency for the liquidation address
+          enum:
+          - usdc
+          - eurc
+          - dai
+          - pyusd
+          - usdt
+          example: usdc
+          type: string
+        address:
+          description: The liquidation address on the blockchain
+          example: 0x4d0280da2f2fDA5103914bCc5aad114743152A9c
+          type: string
+        external_account_id:
+          description: External bank account to send funds to
+          example: ext_123
+          maxLength: 42
+          type: string
+        prefunded_account_id:
+          description: Developer's prefunded account id
+          example: pf_acc_123
+          maxLength: 42
+          type: string
+        bridge_wallet_id:
+          description: Bridge Wallet to send funds to
+          example: bw_123
+          maxLength: 42
+          type: string
+        destination_payment_rail:
+          allOf:
+          - $ref: "#/components/schemas/BridgePaymentRail"
+          default: ach
+          description: Payment rail for sending funds
+          example: sepa
+        destination_currency:
+          allOf:
+          - $ref: "#/components/schemas/DestinationCurrency"
+          default: usd
+          description: Currency for sending funds
+          example: eur
+        destination_wire_message:
+          description: Message for wire transfers
+          example: Liquidation payment for customer
+          maxLength: 256
+          type: string
+        destination_sepa_reference:
+          description: Reference for SEPA transactions
+          example: SEPA-REF-123456
+          maxLength: 140
+          minLength: 6
+          type: string
+        destination_ach_reference:
+          description: Reference for ACH transactions
+          example: ACH123
+          maxLength: 10
+          type: string
+        destination_address:
+          description: Crypto wallet address for crypto transfers
+          example: 0x1234567890abcdef1234567890abcdef12345678
+          type: string
+        destination_blockchain_memo:
+          description: Memo for blockchain transactions
+          example: liquidation-memo-123
+          type: string
+        return_address:
+          description: Address to return funds on failed transactions (Not supported
+            on Stellar)
+          example: 0xabcdefabcdefabcdefabcdefabcdefabcdef
+          type: string
+        custom_developer_fee_percent:
+          description: "Custom developer fee percentage (Base 100 percentage: 10.2%\
+            \ = \"10.2\")"
+          example: "2.5"
+          type: string
+      required:
+      - address
+      - chain
+      - currency
+      type: object
+    LiquidationAddressResponseDto:
+      example:
+        chain: ethereum
+        address: 0x4d0280da2f2fDA5103914bCc5aad114743152A9c
+        created_at: created_at
+        bridge_wallet_id: bridge_wallet_id
+        external_account_id: external_account_id
+        prefunded_account_id: prefunded_account_id
+        destination_payment_rail: destination_payment_rail
+        updated_at: updated_at
+        custom_developer_fee_percent: custom_developer_fee_percent
+        destination_currency: destination_currency
+        currency: usdc
+        id: la_generated_id_123
+        state: active
+        customer_id: cust_123
+      properties:
+        id:
+          description: Unique identifier for the liquidation address
+          example: la_generated_id_123
+          type: string
+        state:
+          description: Current state of the liquidation address
+          example: active
+          type: string
+        customer_id:
+          description: Customer ID this liquidation address belongs to
+          example: cust_123
+          type: string
+        chain:
+          description: Blockchain chain
+          example: ethereum
+          type: string
+        currency:
+          description: Currency
+          example: usdc
+          type: string
+        address:
+          description: Liquidation address
+          example: 0x4d0280da2f2fDA5103914bCc5aad114743152A9c
+          type: string
+        external_account_id:
+          description: External account ID
+          type: string
+        prefunded_account_id:
+          description: Prefunded account ID
+          type: string
+        bridge_wallet_id:
+          description: Bridge wallet ID
+          type: string
+        destination_payment_rail:
+          description: Destination payment rail
+          type: string
+        destination_currency:
+          description: Destination currency
+          type: string
+        custom_developer_fee_percent:
+          description: Custom developer fee percent
+          type: string
+        created_at:
+          description: Creation timestamp
+          type: string
+        updated_at:
+          description: Last update timestamp
+          type: string
+      required:
+      - address
+      - chain
+      - created_at
+      - currency
+      - customer_id
+      - id
+      - state
+      - updated_at
+      type: object
+    AggregatedBalanceResponse:
+      example:
+        total_balance: "5678.90"
+        balances:
+        - "{}"
+        - "{}"
+        currency: usdc
+      properties:
+        currency:
+          description: The stablecoin currency
+          enum:
+          - usdc
+          - eurc
+          example: usdc
+          type: string
+        total_balance:
+          description: The total aggregated balance across all wallets and chains
+          example: "5678.90"
+          type: string
+        balances:
+          description: Detailed breakdown of balances by wallet and chain
+          items:
+            type: object
+          type: array
+      required:
+      - balances
+      - currency
+      - total_balance
+      type: object
+    AllBalancesResponse:
+      example:
+        total_usd_value: "6890.45"
+        usdc: ""
+        eurc: ""
+      properties:
+        usdc:
+          allOf:
+          - $ref: "#/components/schemas/AggregatedBalanceResponse"
+          description: USDC balance aggregation
+        eurc:
+          allOf:
+          - $ref: "#/components/schemas/AggregatedBalanceResponse"
+          description: EURC balance aggregation
+        total_usd_value:
+          description: Total value in USD equivalent
+          example: "6890.45"
+          type: string
+      required:
+      - eurc
+      - total_usd_value
+      - usdc
+      type: object
+    ExchangeRateResponseDto:
+      example:
+        midmarket_rate: "0.85000"
+        from: usd
+        to: eur
+        sell_rate: "0.85500"
+        buy_rate: "0.84500"
+        timestamp: 2024-01-15T10:30:00Z
+      properties:
+        from:
+          description: Source currency code (USD for USDC)
+          example: usd
+          type: string
+        to:
+          description: Target currency code (EUR for EURC)
+          example: eur
+          type: string
+        midmarket_rate:
+          description: Mid-market exchange rate from source to target currency
+          example: "0.85000"
+          type: string
+        buy_rate:
+          description: Rate for buying target currency (what you get when converting
+            from source to target)
+          example: "0.84500"
+          type: string
+        sell_rate:
+          description: Rate for selling target currency (what you pay when converting
+            from target to source)
+          example: "0.85500"
+          type: string
+        timestamp:
+          description: Timestamp when the exchange rate was last updated
+          example: 2024-01-15T10:30:00Z
+          type: string
+      required:
+      - buy_rate
+      - from
+      - midmarket_rate
+      - sell_rate
+      - to
+      type: object
+    CreateProductDto:
+      properties:
+        name:
+          description: Product name as it will appear to customers. Should be clear
+            and descriptive.
+          example: Premium Software License
+          maxLength: 200
+          minLength: 1
+          type: string
+        description:
+          description: Detailed description of the product. Supports markdown formatting
+            for rich text display.
+          example: "Annual license for our premium software suite with advanced features,\
+            \ priority support, and regular updates."
+          maxLength: 2000
+          type: string
+        price:
+          description: Product price in the specified currency. Must be greater than
+            0.
+          example: 299.99
+          minimum: 0.01
+          type: number
+        currency:
+          default: USD
+          description: Currency code for the price. Defaults to USD if not specified.
+          enum:
+          - USD
+          - EUR
+          - GBP
+          - CAD
+          - AUD
+          - JPY
+          example: USD
+          type: string
+        type:
+          description: Product type
+          example: DIGITAL
+          type: string
+        weight:
+          description: Weight of the product
+          type: number
+        unit:
+          description: Unit of measurement
+          type: string
+        quantity:
+          description: Quantity available
+          type: number
+        stockCount:
+          description: Stock count
+          type: number
+        status:
+          description: Product status
+          example: ACTIVE
+          type: string
+        productType:
+          description: Product type
+          example: PRODUCT
+          type: string
+        images:
+          description: Array of image URLs
+          items:
+            type: string
+          type: array
+      required:
+      - description
+      - name
+      - price
+      type: object
+    UpdateProductDto:
+      properties:
+        name:
+          description: Product name as it will appear to customers. Should be clear
+            and descriptive.
+          example: Premium Software License
+          maxLength: 200
+          minLength: 1
+          type: string
+        description:
+          description: Detailed description of the product. Supports markdown formatting
+            for rich text display.
+          example: "Annual license for our premium software suite with advanced features,\
+            \ priority support, and regular updates."
+          maxLength: 2000
+          type: string
+        price:
+          description: Product price in the specified currency. Must be greater than
+            0.
+          example: 299.99
+          minimum: 0.01
+          type: number
+        currency:
+          default: USD
+          description: Currency code for the price. Defaults to USD if not specified.
+          enum:
+          - USD
+          - EUR
+          - GBP
+          - CAD
+          - AUD
+          - JPY
+          example: USD
+          type: string
+        type:
+          description: Product type
+          example: DIGITAL
+          type: string
+        weight:
+          description: Weight of the product
+          type: number
+        unit:
+          description: Unit of measurement
+          type: string
+        quantity:
+          description: Quantity available
+          type: number
+        stockCount:
+          description: Stock count
+          type: number
+        status:
+          description: Product status
+          example: ACTIVE
+          type: string
+        productType:
+          description: Product type
+          example: PRODUCT
+          type: string
+        images:
+          description: Array of image URLs
+          items:
+            type: string
+          type: array
+      type: object
+    InvoiceProductDto:
+      properties:
+        product_id:
+          description: Product ID
+          type: string
+        quantity:
+          description: Quantity of the product
+          type: number
+      required:
+      - product_id
+      - quantity
+      type: object
+    CreateInvoiceDto:
+      example:
+        delivery: EMAIL
+        address: address
+        partial_payment: true
+        due_date: 2000-01-23T04:56:07.000+00:00
+        payment_link: true
+        payment_methods:
+        - ACH
+        - ACH
+        send_date: 2000-01-23T04:56:07.000+00:00
+        taxId: taxId
+        name: name
+        logo: logo
+        currency: usdc
+        phone_number: phone_number
+        customer_id: customer_id
+        items: "{}"
+        email: email
+        status: DRAFT
+      properties:
+        name:
+          description: Name of the invoice
+          type: string
+        email:
+          description: Email address
+          type: string
+        customer_id:
+          description: Customer ID
+          type: string
+        currency:
+          description: Currency for the invoice
+          enum:
+          - usdc
+          - eurc
+          type: string
+        items:
+          type: object
+        due_date:
+          description: Due date of the invoice
+          format: date-time
+          type: string
+        delivery:
+          description: Delivery method
+          enum:
+          - EMAIL
+          - MANUALLY
+          type: string
+        payment_link:
+          description: Whether to generate a payment link
+          type: boolean
+        payment_methods:
+          description: Array of accepted payment methods
+          items:
+            enum:
+            - ACH
+            - BANK_TRANSFER
+            - CREDIT_CARD
+            - CASH
+            - MOBILE_MONEY
+            - CRYPTO
+            type: string
+          type: array
+        status:
+          description: Invoice status
+          enum:
+          - DRAFT
+          - OPEN
+          - PASTDUE
+          - PAID
+          - PARTIALLYPAID
+          type: string
+        address:
+          description: Address
+          type: string
+        phone_number:
+          description: Phone number
+          type: string
+        send_date:
+          description: Send date
+          format: date-time
+          type: string
+        logo:
+          description: Logo URL
+          type: string
+        partial_payment:
+          description: Allow partial payments
+          type: boolean
+        taxId:
+          description: Tax ID
+          type: string
+      required:
+      - currency
+      - customer_id
+      - delivery
+      - due_date
+      - email
+      - items
+      - name
+      - partial_payment
+      - payment_link
+      - payment_methods
+      - status
+      type: object
+    CreateTaxDto:
+      example:
+        appIds:
+        - app_123e4567-e89b-12d3-a456-426614174000
+        percentage: 8.5
+        name: Sales Tax
+        description: Standard sales tax for retail transactions
+        active: true
+      properties:
+        name:
+          description: Tax name. Used to identify and reference this tax rate.
+          example: Sales Tax
+          maxLength: 100
+          minLength: 1
+          type: string
+        description:
+          description: Optional description explaining what this tax covers.
+          example: Standard sales tax for retail transactions
+          maxLength: 255
+          type: string
+        percentage:
+          description: Tax percentage rate. Must be between 0 and 100.
+          example: 8.5
+          maximum: 100
+          minimum: 0
+          type: number
+        active:
+          default: true
+          description: Whether this tax is currently active and can be applied.
+          example: true
+          type: boolean
+        appIds:
+          description: "Array of app IDs where this tax should be available. If not\
+            \ provided, tax will be available for the current app."
+          example:
+          - app_123e4567-e89b-12d3-a456-426614174000
+          items:
+            format: uuid
+            type: string
+          type: array
+      required:
+      - name
+      - percentage
+      type: object
+    UpdateTaxDto:
+      example:
+        appIds:
+        - app_123e4567-e89b-12d3-a456-426614174000
+        percentage: 9.5
+        name: Updated Sales Tax
+        description: Updated description for retail sales tax
+        active: false
+      properties:
+        name:
+          description: Tax name for identification and display purposes
+          example: Updated Sales Tax
+          maxLength: 100
+          type: string
+        description:
+          description: Detailed description of what this tax covers
+          example: Updated description for retail sales tax
+          maxLength: 255
+          type: string
+        percentage:
+          description: Tax rate as a percentage (0-100)
+          example: 9.5
+          maximum: 100
+          minimum: 0
+          type: number
+        active:
+          description: Whether this tax is currently active and can be applied
+          example: false
+          type: boolean
+        appIds:
+          description: Array of app IDs where this tax should be available
+          example:
+          - app_123e4567-e89b-12d3-a456-426614174000
+          items:
+            format: uuid
+            type: string
+          type: array
+      type: object
+    TaxController_updateWithoutId_400_response:
+      example:
+        message: "Tax ID is required in the URL path. Use PUT /api/v0/taxes/{id} to\
+          \ update a specific tax."
+        error: Bad Request
+        statusCode: 400
+      properties:
+        message:
+          example: "Tax ID is required in the URL path. Use PUT /api/v0/taxes/{id}\
+            \ to update a specific tax."
+          type: string
+        error:
+          example: Bad Request
+          type: string
+        statusCode:
+          example: 400
+          type: number
+      type: object
+    TaxController_create_201_response:
+      example:
+        updated_at: 2000-01-23T04:56:07.000+00:00
+        percentage: 8.5
+        name: Sales Tax
+        description: Standard sales tax for retail transactions
+        active: true
+        created_at: 2000-01-23T04:56:07.000+00:00
+        id: tax_123e4567-e89b-12d3-a456-426614174000
+      properties:
+        id:
+          example: tax_123e4567-e89b-12d3-a456-426614174000
+          type: string
+        name:
+          example: Sales Tax
+          type: string
+        description:
+          example: Standard sales tax for retail transactions
+          type: string
+        percentage:
+          example: 8.5
+          type: number
+        active:
+          example: true
+          type: boolean
+        created_at:
+          format: date-time
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      type: object
+    TaxController_deleteWithoutId_400_response:
+      example:
+        message: "Tax ID is required in the URL path. Use DELETE /api/v0/taxes/{id}\
+          \ to delete a specific tax."
+        error: Bad Request
+        statusCode: 400
+      properties:
+        message:
+          example: "Tax ID is required in the URL path. Use DELETE /api/v0/taxes/{id}\
+            \ to delete a specific tax."
+          type: string
+        error:
+          example: Bad Request
+          type: string
+        statusCode:
+          example: 400
+          type: number
+      type: object
+  securitySchemes:
+    x-client-key:
+      description: Your unique client API key. Obtain this from your Devdraft AI dashboard.
+      in: header
+      name: x-client-key
+      type: apiKey
+    x-client-secret:
+      description: Your secret API key. Keep this secure and never expose it in client-side
+        code.
+      in: header
+      name: x-client-secret
+      type: apiKey
+    idempotency-key:
+      description: Optional UUID v4 for idempotent requests. Prevents duplicate operations
+        when the same key is used.
+      in: header
+      name: idempotency-key
+      type: apiKey
+
